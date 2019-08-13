@@ -1,0 +1,14 @@
+{
+    "object": {
+        "controllers": {
+            "Index": {
+                "defaultAction": "index",
+                "actions": [
+                    "index",
+                    "blupp"
+                ]
+            }
+        },
+        "defaultController": "Index"
+    }
+}
