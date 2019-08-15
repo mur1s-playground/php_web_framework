@@ -62,7 +62,7 @@ class Boot {
             $controller_instance = new $controller_full_name();
             $controller_action = null;
             if (sizeof($request_params) > 2 && strlen($request_params[2]) > 0) {
-               foreach ($controller_cfg[$controller_cfg]['actions'] as $available_action) {
+               foreach ($controller_cfg[$controller_name]['actions'] as $available_action) {
                    if (strtolower($request_params[2]) == strtolower($available_action)) {
                        $controller_action = $available_action . 'Action';
                        break;

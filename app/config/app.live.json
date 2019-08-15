@@ -1,0 +1,20 @@
+{
+  "modules": {
+    "namespace": "Api",
+    "config": "/home/mur1/Projects/php_web_framework/app/config/modules.json",
+    "path": "/home/mur1/Projects/php_web_framework/app/modules/",
+    "defaultModule": "object"
+  },
+  "dbmodel": {
+    "namespace": "Api",
+    "classname_prefix": "",
+    "parentpath": "/home/mur1/Projects/php_web_framework/vendor/reinerlanz/frame/src/DB/",
+    "path": "/home/mur1/Projects/php_web_framework/app/model/"
+  },
+  "mysql": {
+    "host" : "localhost",
+    "username" : "root",
+    "password" : "test123",
+    "database" : "api"
+  }
+}

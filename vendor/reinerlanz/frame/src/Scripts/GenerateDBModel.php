@@ -14,6 +14,9 @@ class GenerateDBModel {
     public function run() {
         $mysql_con = mysqli_connect($this->config->getConfigValue(array("mysql", "host")), $this->config->getConfigValue(array("mysql", "username")), $this->config->getConfigValue(array("mysql", "password")), $this->config->getConfigValue(array("mysql", "database")));
         $mysql_tables_result = mysqli_query($mysql_con, "SHOW TABLES;");
+
+        $classname_prefix = $this->config->getConfigValue(array("dbmodel", "classname_prefix"));
+        if (is_null($classname_prefix)) $classname_prefix = "";
         while (($mysql_tables_row = mysqli_fetch_array($mysql_tables_result)) != null) {
             $table_name = $mysql_tables_row[0];
             $mysql_table_desc_result = mysqli_query($mysql_con, "DESCRIBE `{$table_name}`;");
@@ -27,8 +30,9 @@ class GenerateDBModel {
             $class_contents .= "require \"{$parent_path}DBTable.php\";\r\n\r\n";
 
             $class_name = $this->underscoreToCamelcase($table_name, true);
-            $class_contents .= "class {$class_name}Model extends \Frame\DBTable {\r\n\r\n";
+            $class_contents .= "class {$classname_prefix}{$class_name}Model extends \Frame\DBTable {\r\n\r\n";
 
+            $class_const = "";
             $class_vars = "";
             $class_functions = "";
 
@@ -37,6 +41,7 @@ class GenerateDBModel {
             while (($mysql_table_desc_row = mysqli_fetch_assoc($mysql_table_desc_result)) != null) {
                 $table_fields[$this->underscoreToCamelcase($mysql_table_desc_row['Field'], true)] = $mysql_table_desc_row;
                 $camel_name = $this->underscoreToCamelcase($mysql_table_desc_row['Field'], true);
+                $class_const .= "\tconst FIELD_" . strtoupper($mysql_table_desc_row['Field']) . " = '" . $camel_name ."';\r\n";
                 $class_vars .= "\t/* {$mysql_table_desc_row['Type']} */\r\n";
                 $class_vars .= "\tprivate \${$camel_name};\r\n\r\n";
                 $class_functions .= "\t/* @return {$mysql_table_desc_row['Type']} \$this->{$camel_name} */\r\n";
@@ -50,6 +55,8 @@ class GenerateDBModel {
             }
 
             $table_fields_json = json_encode($table_fields);
+
+            $class_contents .= "{$class_const}\r\n";
 
             $class_contents .= "{$class_vars}\r\n";
 
@@ -84,5 +91,13 @@ class GenerateDBModel {
     }
 }
 
-$db_model = new GenerateDBModel("../../../../app/config/app.json");
+$env = getenv('FRAME_ENVIRONMENT');
+
+if ($env == "development") {
+    $cfg = "development";
+} else {
+    $cfg = "live";
+}
+
+$db_model = new GenerateDBModel("../../../../../app/config/app.{$cfg}.json");
 $db_model->run();

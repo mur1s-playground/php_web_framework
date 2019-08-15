@@ -56,5 +56,13 @@ class GenerateModuleConfig {
     }
 }
 
-$db_model = new GenerateModuleConfig("../../../../app/config/app.json");
+$env = getenv('FRAME_ENVIRONMENT');
+
+if ($env == "development") {
+    $cfg = "development";
+} else {
+    $cfg = "live";
+}
+
+$db_model = new GenerateModuleConfig("../../../../../app/config/app.{$cfg}.json");
 $db_model->run();

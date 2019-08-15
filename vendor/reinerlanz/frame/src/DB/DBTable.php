@@ -47,9 +47,13 @@ class DBTable {
                 continue;
             }
 
-            if (strpos($field['Type'], "char") !== false || strpos($field['Type'], "text") !== false) {
-                $query .= "'{$value}',";
+            if ($this->isTextType($field['Type'])) {
+                $sanitised_value = $this->sanitise($value);
+                $query .= "'{$sanitised_value}',";
             } else {
+                if (!is_numeric($value)) {
+                    $error[] = "non numeric value {$value} for {$this->table_name}.{$field['Field']}";
+                }
                 $query .= "{$value},";
             }
         }
@@ -75,10 +79,15 @@ class DBTable {
                     $where_loop_count++;
                     $field = $this->fields[$column];
                     $where .= "`{$field['Field']}` = ";
-                    if (strpos($field['Type'], "char") !== false || strpos($field['Type'], "text") !== false) {
-                        $where .= "'{$value}'";
+
+                    if ($this->isTextType($field['Type'])) {
+                        $sanitised_value = $this->sanitiseText($value);
+                        $where .= "'{$sanitised_value}',";
                     } else {
-                        $where .= "{$value}";
+                        if (!is_numeric($value)) {
+                            $error[] = "non numeric value {$value} for {$this->table_name}.{$column}";
+                        }
+                        $where .= "{$value},";
                     }
                     if ($where_loop_count < $where_count) {
                         $where .= " AND ";
@@ -87,7 +96,7 @@ class DBTable {
                     $error[] = "unknown column {$column} for {$this->table_name}";
                 }
             }
-            $query .= $where;
+            $query .= rtrim($where, ',');
         }
         $query .= ";";
 
@@ -107,5 +116,16 @@ class DBTable {
             return true;
         }
         return false;
+    }
+
+    private function isTextType($type) {
+        if (strpos($type, "char") !== false || strpos($type, "text") !== false) {
+            return true;
+        }
+        return false;
+    }
+
+    private function sanitiseText($text) {
+        return htmlentities($text, ENT_QUOTES);
     }
 }
