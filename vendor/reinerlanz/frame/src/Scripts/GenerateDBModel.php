@@ -27,7 +27,7 @@ class GenerateDBModel {
             }
 
             $parent_path = $this->config->getConfigValue(array("dbmodel", "parentpath"));
-            $class_contents .= "require \"{$parent_path}DBTable.php\";\r\n\r\n";
+            $class_contents .= "require_once \"{$parent_path}DBTable.php\";\r\n\r\n";
 
             $class_name = $this->underscoreToCamelcase($table_name, true);
             $class_contents .= "class {$classname_prefix}{$class_name}Model extends \Frame\DBTable {\r\n\r\n";

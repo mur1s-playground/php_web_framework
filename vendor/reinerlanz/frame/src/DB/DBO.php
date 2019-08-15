@@ -12,4 +12,8 @@ class DBO {
     public function query($query) {
         return mysqli_query($this->db_con, $query);
     }
+
+    public function real_escape_string($string) {
+        return mysqli_real_escape_string($this->db_con, $string);
+    }
 }
