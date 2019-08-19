@@ -70,10 +70,10 @@ class DBTable {
         $this->DBO->query($query);
     }
 
-    public function find($condition = null, $joins = null) {
+    public function find($condition = null, $joins = null, $orders = null, $limit = null) {
         $error = array();
 
-        $query = "SELECT *";
+        $query = "SELECT * FROM `{$this->table_name}` AS `frame_maintable`";
 
         $query_join = "";
         if (!is_null($joins)) {
@@ -82,14 +82,6 @@ class DBTable {
             }
 
             $this->joins = $joins;
-
-            /*
-            $join_table_counter = 0;
-            foreach ($this->joins as $join) {
-                //$query .= ",`frame_join_{$join_table_counter}`.*";
-                $join_table_counter++;
-            }
-            */
 
             $join_table_counter = 0;
             foreach ($this->joins as $join) {
@@ -165,8 +157,6 @@ class DBTable {
             }
         }
 
-        $query .= " FROM `{$this->table_name}` AS `frame_maintable`";
-
         $query .= "{$query_join}";
 
         if (!is_null($condition)) {
@@ -238,6 +228,48 @@ class DBTable {
             }
             $query .= $where . implode('', $condition_expr_array);
         }
+
+        if (!is_null($orders)) {
+            if (!is_array($orders)) {
+                $orders = [$orders];
+            }
+
+            $order_query = " ORDER BY ";
+            $order_arr = array();
+            foreach ($orders as $order) {
+                $table = $order->getClass();
+                $field_name_camel = $order->getField();
+                $sorting = $order->getSorting();
+
+                if ($table == get_class($this)) {
+                    $table_field = $this->fields[$field_name_camel];
+                    $order_arr[] = "`frame_maintable`.{$table_field['Field']} {$sorting}";
+                } else {
+                    for ($j = 0; $j < sizeof($this->joins); $j++) {
+                        if ($table == get_class($this->joins[$j]->getModel())) {
+                            $table_field = $this->joins[$j]->getModel()->getFields()[$field_name_camel];
+                            $order_arr[] = "`frame_join_{$j}`.`{$table_field['Field']}` {$sorting}";
+                            break;
+                        }
+                    }
+                }
+            }
+            $query .= $order_query . implode(',', $order_arr);
+        }
+
+        if (!is_null($limit)) {
+            if (!is_int($limit->getLimit())) {
+                $error[] = "non int limit";
+            }
+            $query .= " LIMIT {$limit->getLimit()}";
+            if (!is_null($limit->getOffset())) {
+                if (!is_int($limit->getOffset())) {
+                    $error[] = "non int offset";
+                }
+                $query .= ", {$limit->getOffset()}";
+            }
+        }
+
         $query .= ";";
 
         if (sizeof($error) > 0) {
@@ -245,6 +277,13 @@ class DBTable {
         }
 
         $this->resultSet = $this->DBO->query($query);
+    }
+
+    public function count() {
+        if (!is_null($this->resultSet)) {
+            return mysqli_num_rows($this->resultSet);
+        }
+        return 0;
     }
 
     public function next() {
@@ -267,6 +306,91 @@ class DBTable {
         return false;
     }
 
+    public function save($deep = false) {
+        $pairs_arr = array();
+        $where = "";
+        $error = array();
+        foreach ($this->fields as $field_name_camel => $field) {
+            $child_getter_function = "get{$field_name_camel}";
+            $value = $this->$child_getter_function();
+
+            if ($this->isTextType($field['Type'])) {
+                $value = "'" . $this->DBO->real_escape_string($value) . "'";
+            } else {
+                if (!is_numeric($value)) {
+                    $error[] = "non numeric value {$value} for {$this->table_name}.{$field['Field']}";
+                }
+            }
+
+            if ($field['Key'] == 'PRI') {
+                $where = " WHERE `{$field['Field']}` = {$value}";
+                continue;
+            }
+            $pairs_arr[] = "`{$field['Field']}` = {$value}";
+        }
+
+        if ($where == "") {
+            $error[] = "no where clause to specify row to update for {$this->table_name}";
+        }
+
+        if (sizeof($error) > 0) {
+            die(json_encode(array('error' => $error)));
+        }
+
+        $imploded_pairs = implode(',', $pairs_arr);
+
+        $query = "UPDATE `{$this->table_name}` SET {$imploded_pairs}{$where};";
+        $this->DBO->query($query);
+
+        if ($deep) {
+            if (!is_null($this->joins)) {
+                foreach ($this->joins as $join) {
+                    $join->getModel()->save();
+                }
+            }
+        }
+    }
+
+    public function delete($deep = false) {
+        $query = "DELETE FROM `{$this->table_name}`";
+        $where = "";
+        foreach ($this->fields as $field_name_camel => $field) {
+            if ($field['Key'] == 'PRI') {
+                $child_getter_function = "get{$field_name_camel}";
+                $value = $this->$child_getter_function();
+
+                if ($this->isTextType($field['Type'])) {
+                    $value = "'" . $this->DBO->real_escape_string($value) . "'";
+                } else {
+                    if (!is_numeric($value)) {
+                        $error[] = "non numeric value {$value} for {$this->table_name}.{$field['Field']}";
+                    }
+                }
+
+                $where = " WHERE `{$field['Field']}` = {$value}";
+                break;
+            }
+        }
+        if ($where == "") {
+            $error[] = "no where clause to specify row to delete for {$this->table_name}";
+        }
+
+        if (sizeof($error) > 0) {
+            die(json_encode(array('error' => $error)));
+        }
+
+        $query .= "{$where};";
+        $this->DBO->query($query);
+
+        if ($deep) {
+            if (!is_null($this->joins)) {
+                foreach ($this->joins as $join) {
+                    $join->getModel()->delete();
+                }
+            }
+        }
+    }
+
     private function isTextType($type) {
         if (strpos($type, "char") !== false || strpos($type, "text") !== false) {
             return true;
@@ -276,5 +400,14 @@ class DBTable {
 
     public function getFields() {
         return $this->fields;
+    }
+
+    public function toArray() {
+        $arr = array();
+        foreach ($this->fields as $field_name_camel => $field) {
+            $child_getter_function = "get{$field_name_camel}";
+            $arr[$field_name_camel] = $this->$child_getter_function();
+        }
+        return $arr;
     }
 }

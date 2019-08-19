@@ -7,7 +7,9 @@ class Condition {
 
     const COMPARISON_EQUALS = '=';
     const COMPARISON_GREATER = '>';
+    const COMPARISON_GREATER_EQUALS = '>=';
     const COMPARISON_LESS = '<';
+    const COMPARISON_LESS_EQUALS = '<=';
 
     private $expr = "";
     private $value_array = "";
