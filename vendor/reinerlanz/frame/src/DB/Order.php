@@ -17,7 +17,7 @@ class Order {
     }
 
     public function getClass() {
-        $this->class;
+        return $this->class;
     }
 
     public function getField() {
