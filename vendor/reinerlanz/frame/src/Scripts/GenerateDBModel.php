@@ -76,7 +76,7 @@ class GenerateDBModel {
         $next_is_capital = $first_is_capital;
         for ($i = 0; $i < strlen($str); $i++) {
             if ($str[$i] == "_") {
-                $next_is_capital == true;
+                $next_is_capital = true;
                 continue;
             } else {
                 if ($next_is_capital) {
