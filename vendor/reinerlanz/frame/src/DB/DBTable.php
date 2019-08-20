@@ -110,7 +110,7 @@ class DBTable {
                         $replacement = $join->getValueArray()[$join_expr_array[$i]];
 
                         if ($replacement[0][0] == get_class($this)) {
-                            $field = $this->getFields()[$replacement[0][1]];
+                            $field = $this->fields()[$replacement[0][1]];
                             $join_expr_array[$i] = "`frame_maintable`.`{$field['Field']}`";
                         } else if ($replacement[0][0] == Condition::CONDITION_CONST) {
                             if (is_numeric($replacement[0][1])) {
@@ -121,7 +121,7 @@ class DBTable {
                         } else {
                             for ($j = 0; $j < sizeof($this->joins); $j++) {
                                 if ($replacement[0][0] == get_class($this->joins[$j]->getModel())) {
-                                    $field = $this->joins[$j]->getModel()->getFields()[$replacement[0][1]];
+                                    $field = $this->joins[$j]->getModel()->fields()[$replacement[0][1]];
                                     $join_expr_array[$i] = "`frame_join_{$j}`.`{$field['Field']}`";
                                     break;
                                 }
@@ -131,7 +131,7 @@ class DBTable {
                         $join_expr_array[$i] .= " {$replacement[1]} ";
 
                         if ($replacement[2][0] == get_class($this)) {
-                            $field = $this->getFields()[$replacement[2][1]];
+                            $field = $this->fields()[$replacement[2][1]];
                             $join_expr_array[$i] .= "`frame_maintable`.`{$field['Field']}`";
                         } else if ($replacement[2][0] == Condition::CONDITION_CONST) {
                             if (is_numeric($replacement[2][1])) {
@@ -142,7 +142,7 @@ class DBTable {
                         } else {
                             for ($j = 0; $j < sizeof($this->joins); $j++) {
                                 if ($replacement[2][0] == get_class($this->joins[$j]->getModel())) {
-                                    $field = $this->joins[$j]->getModel()->getFields()[$replacement[2][1]];
+                                    $field = $this->joins[$j]->getModel()->fields()[$replacement[2][1]];
                                     $join_expr_array[$i] .= "`frame_join_{$j}`.`{$field['Field']}`";
                                     break;
                                 }
@@ -186,7 +186,7 @@ class DBTable {
                     $replacement = $condition->getValueArray()[$condition_expr_array[$i]];
 
                     if ($replacement[0][0] == get_class($this)) {
-                        $field = $this->getFields()[$replacement[0][1]];
+                        $field = $this->fields()[$replacement[0][1]];
                         $condition_expr_array[$i] = "`frame_maintable`.`{$field['Field']}`";
                     } else if ($replacement[0][0] == Condition::CONDITION_CONST) {
                         if (is_numeric($replacement[0][1])) {
@@ -197,7 +197,7 @@ class DBTable {
                     } else {
                         for ($j = 0; $j < sizeof($this->joins); $j++) {
                             if ($replacement[0][0] == get_class($this->joins[$j]->getModel())) {
-                                $field = $this->joins[$j]->getModel()->getFields()[$replacement[0][1]];
+                                $field = $this->joins[$j]->getModel()->fields()[$replacement[0][1]];
                                 $condition_expr_array[$i] = "`frame_join_{$j}`.`{$field['Field']}`";
                                 break;
                             }
@@ -207,7 +207,7 @@ class DBTable {
                     $condition_expr_array[$i] .= " {$replacement[1]} ";
 
                     if ($replacement[2][0] == get_class($this)) {
-                        $field = $this->getFields()[$replacement[2][1]];
+                        $field = $this->fields()[$replacement[2][1]];
                         $condition_expr_array[$i] .= "`frame_maintable`.`{$field['Field']}`";
                     } else if ($replacement[2][0] == Condition::CONDITION_CONST) {
                         if (is_numeric($replacement[2][1])) {
@@ -218,7 +218,7 @@ class DBTable {
                     } else {
                         for ($j = 0; $j < sizeof($this->joins); $j++) {
                             if ($replacement[2][0] == get_class($this->joins[$j]->getModel())) {
-                                $field = $this->joins[$j]->getModel()->getFields()[$replacement[2][1]];
+                                $field = $this->joins[$j]->getModel()->fields()[$replacement[2][1]];
                                 $condition_expr_array[$i] .= "`frame_join_{$j}`.`{$field['Field']}`";
                                 break;
                             }
@@ -247,7 +247,7 @@ class DBTable {
                 } else {
                     for ($j = 0; $j < sizeof($this->joins); $j++) {
                         if ($table == get_class($this->joins[$j]->getModel())) {
-                            $table_field = $this->joins[$j]->getModel()->getFields()[$field_name_camel];
+                            $table_field = $this->joins[$j]->getModel()->fields()[$field_name_camel];
                             $order_arr[] = "`frame_join_{$j}`.`{$table_field['Field']}` {$sorting}";
                             break;
                         }
@@ -295,7 +295,7 @@ class DBTable {
                 $field_counter++;
             }
             foreach ($this->joins as $join) {
-                foreach ($join->getModel()->getFields() as $field_name_camel => $field) {
+                foreach ($join->getModel()->fields() as $field_name_camel => $field) {
                     $child_setter_function = "set{$field_name_camel}";
                     $join->getModel()->$child_setter_function($row[$field_counter]);
                     $field_counter++;
@@ -398,8 +398,17 @@ class DBTable {
         return false;
     }
 
-    public function getFields() {
+    public function fields() {
         return $this->fields;
+    }
+
+    public function joinedModelByClass($class) {
+        foreach ($this->joins as $join) {
+            if ($class == get_class($join->getModel())) {
+                return $join->getModel();
+            }
+        }
+        return null;
     }
 
     public function toArray() {
