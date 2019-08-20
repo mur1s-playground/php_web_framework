@@ -239,7 +239,7 @@ class DBTable {
             foreach ($orders as $order) {
                 $table = $order->getClass();
                 $field_name_camel = $order->getField();
-                $sorting = $order->getSorting();
+                $sorting = $order->getOrdering();
 
                 if ($table == get_class($this)) {
                     $table_field = $this->fields[$field_name_camel];
