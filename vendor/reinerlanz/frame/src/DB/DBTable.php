@@ -294,11 +294,13 @@ class DBTable {
                 $this->$child_setter_function($row[$field_counter]);
                 $field_counter++;
             }
-            foreach ($this->joins as $join) {
-                foreach ($join->getModel()->fields() as $field_name_camel => $field) {
-                    $child_setter_function = "set{$field_name_camel}";
-                    $join->getModel()->$child_setter_function($row[$field_counter]);
-                    $field_counter++;
+            if (!is_null($this->joins)) {
+                foreach ($this->joins as $join) {
+                    foreach ($join->getModel()->fields() as $field_name_camel => $field) {
+                        $child_setter_function = "set{$field_name_camel}";
+                        $join->getModel()->$child_setter_function($row[$field_counter]);
+                        $field_counter++;
+                    }
                 }
             }
             return true;
