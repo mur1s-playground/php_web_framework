@@ -413,6 +413,10 @@ class DBTable {
         return null;
     }
 
+    public function joinedModelById($id) {
+        return $this->joins[$id]->getModel();
+    }
+
     public function toArray() {
         $arr = array();
         foreach ($this->fields as $field_name_camel => $field) {
