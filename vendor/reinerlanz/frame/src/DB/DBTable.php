@@ -2,6 +2,9 @@
 
 namespace Frame;
 
+require_once 'Limit.php';
+require_once 'Order.php';
+
 class DBTable {
     protected $DBO = null;
 
@@ -25,10 +28,13 @@ class DBTable {
         }
     }
 
-    public function insert() {
+    public function insert($lock = true) {
         $query = "INSERT INTO `{$this->table_name}` (";
         foreach ($this->fields as $field_name_camel => $field) {
-            if ($field['Extra'] == "auto_increment") continue;
+            if ($field['Extra'] == "auto_increment") {
+                if ($lock) $ai_field = $field_name_camel;
+                continue;
+            }
             $query .= "`{$field['Field']}`,";
         }
         $query = rtrim($query, ',');
@@ -67,7 +73,20 @@ class DBTable {
             die(json_encode(array('error' => $error), JSON_PRETTY_PRINT));
         }
 
-        $this->DBO->query($query);
+        if ($lock) {
+            $this->DBO->query("LOCK TABLES `{$this->table_name}` WRITE, `{$this->table_name}` AS `frame_maintable` READ;");
+        }
+        if ($this->DBO->query($query)) {
+            if ($lock) {
+                $order = new Order(get_class($this), $ai_field, Order::ORDER_DESC);
+                $limit = new Limit(1);
+                $this->find(null, null, $order, $limit);
+                $this->next();
+            }
+        }
+        if ($lock) {
+            $this->DBO->query("UNLOCK TABLES;");
+        }
     }
 
     public function find($condition = null, $joins = null, $orders = null, $limit = null) {
@@ -243,7 +262,7 @@ class DBTable {
 
                 if ($table == get_class($this)) {
                     $table_field = $this->fields[$field_name_camel];
-                    $order_arr[] = "`frame_maintable`.{$table_field['Field']} {$sorting}";
+                    $order_arr[] = "`frame_maintable`.`{$table_field['Field']}` {$sorting}";
                 } else {
                     for ($j = 0; $j < sizeof($this->joins); $j++) {
                         if ($table == get_class($this->joins[$j]->getModel())) {
