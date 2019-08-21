@@ -6,6 +6,7 @@ class Condition {
     const CONDITION_CONST = 'CONDITION_CONST';
 
     const COMPARISON_EQUALS = '=';
+    const COMPARISON_NOT_EQUAL = '<>';
     const COMPARISON_GREATER = '>';
     const COMPARISON_GREATER_EQUALS = '>=';
     const COMPARISON_LESS = '<';
