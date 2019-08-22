@@ -335,11 +335,18 @@ class DBTable {
             $child_getter_function = "get{$field_name_camel}";
             $value = $this->$child_getter_function();
 
-            if ($this->isTextType($field['Type'])) {
-                $value = "'" . $this->DBO->real_escape_string($value) . "'";
+            if (is_null($value)) {
+                if ($field['Null'] == 'NO') {
+                    $error[] = "null not allowed for {$this->table_name}.{$field['Field']}";
+                }
+                $value = 'NULL';
             } else {
-                if (!is_numeric($value)) {
-                    $error[] = "non numeric value {$value} for {$this->table_name}.{$field['Field']}";
+                if ($this->isTextType($field['Type'])) {
+                    $value = "'" . $this->DBO->real_escape_string($value) . "'";
+                } else {
+                    if (!is_numeric($value)) {
+                        $error[] = "non numeric value {$value} for {$this->table_name}.{$field['Field']}";
+                    }
                 }
             }
 
