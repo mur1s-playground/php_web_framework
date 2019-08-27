@@ -138,13 +138,18 @@ class DBTable {
                                 $join_expr_array[$i] = "'" . $this->DBO->real_escape_string($replacement[0][1]) . "'";
                             }
                         } else {
-                            for ($j = 0; $j < sizeof($this->joins); $j++) {
+                            $j = 0;
+                            if (sizeof($replacement[0]) == 3) {
+                                $j = $replacement[0][2];
+                            }
+                            for (; $j < sizeof($this->joins); $j++) {
                                 if ($replacement[0][0] == get_class($this->joins[$j]->getModel())) {
                                     $field = $this->joins[$j]->getModel()->fields()[$replacement[0][1]];
                                     $join_expr_array[$i] = "`frame_join_{$j}`.`{$field['Field']}`";
                                     break;
                                 }
                             }
+
                         }
 
                         $join_expr_array[$i] .= " {$replacement[1]} ";
@@ -159,7 +164,11 @@ class DBTable {
                                 $join_expr_array[$i] .= "'" . $this->DBO->real_escape_string($replacement[2][1]) . "'";
                             }
                         } else {
-                            for ($j = 0; $j < sizeof($this->joins); $j++) {
+                            $j = 0;
+                            if (sizeof($replacement[2]) == 3) {
+                                $j = $replacement[2][2];
+                            }
+                            for (; $j < sizeof($this->joins); $j++) {
                                 if ($replacement[2][0] == get_class($this->joins[$j]->getModel())) {
                                     $field = $this->joins[$j]->getModel()->fields()[$replacement[2][1]];
                                     $join_expr_array[$i] .= "`frame_join_{$j}`.`{$field['Field']}`";
@@ -214,7 +223,11 @@ class DBTable {
                             $condition_expr_array[$i] = "'" . $this->DBO->real_escape_string($replacement[0][1]) . "'";
                         }
                     } else {
-                        for ($j = 0; $j < sizeof($this->joins); $j++) {
+                        $j = 0;
+                        if (sizeof($replacement[0]) == 3) {
+                            $j = $replacement[0][2];
+                        }
+                        for (; $j < sizeof($this->joins); $j++) {
                             if ($replacement[0][0] == get_class($this->joins[$j]->getModel())) {
                                 $field = $this->joins[$j]->getModel()->fields()[$replacement[0][1]];
                                 $condition_expr_array[$i] = "`frame_join_{$j}`.`{$field['Field']}`";
@@ -235,7 +248,11 @@ class DBTable {
                             $condition_expr_array[$i] .= "'" . $this->DBO->real_escape_string($replacement[2][1]) . "'";
                         }
                     } else {
-                        for ($j = 0; $j < sizeof($this->joins); $j++) {
+                        $j = 0;
+                        if (sizeof($replacement[2]) == 3) {
+                            $j = $replacement[2][2];
+                        }
+                        for (; $j < sizeof($this->joins); $j++) {
                             if ($replacement[2][0] == get_class($this->joins[$j]->getModel())) {
                                 $field = $this->joins[$j]->getModel()->fields()[$replacement[2][1]];
                                 $condition_expr_array[$i] .= "`frame_join_{$j}`.`{$field['Field']}`";
@@ -264,7 +281,11 @@ class DBTable {
                     $table_field = $this->fields[$field_name_camel];
                     $order_arr[] = "`frame_maintable`.`{$table_field['Field']}` {$sorting}";
                 } else {
-                    for ($j = 0; $j < sizeof($this->joins); $j++) {
+                    $j = 0;
+                    if ($order->getJoinOffset() > 0) {
+                        $j = $order->getJoinOffset();
+                    }
+                    for (; $j < sizeof($this->joins); $j++) {
                         if ($table == get_class($this->joins[$j]->getModel())) {
                             $table_field = $this->joins[$j]->getModel()->fields()[$field_name_camel];
                             $order_arr[] = "`frame_join_{$j}`.`{$table_field['Field']}` {$sorting}";
@@ -299,14 +320,14 @@ class DBTable {
     }
 
     public function count() {
-        if (!is_null($this->resultSet)) {
+        if (!is_null($this->resultSet) && $this->resultSet) {
             return mysqli_num_rows($this->resultSet);
         }
         return 0;
     }
 
     public function next() {
-        if (!is_null($this->resultSet) && ($row = mysqli_fetch_row($this->resultSet)) != null) {
+        if (!is_null($this->resultSet) && $this->resultSet && ($row = mysqli_fetch_row($this->resultSet)) != null) {
             $field_counter = 0;
             foreach ($this->fields as $field_name_camel => $field) {
                 $child_setter_function = "set{$field_name_camel}";
