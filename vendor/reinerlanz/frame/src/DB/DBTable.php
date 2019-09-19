@@ -124,6 +124,10 @@ class DBTable {
                     $expr_cur_pos += strlen($placeholder_name);
                 }
 
+                if ($expr_cur_pos < strlen($join_expr)) {
+                    $join_expr_array[] = substr($join_expr, $expr_cur_pos);
+                }
+
                 for ($i = 0; $i < sizeof($join_expr_array); $i++) {
                     if (array_key_exists($join_expr_array[$i], $join->getValueArray())) {
                         $replacement = $join->getValueArray()[$join_expr_array[$i]];
@@ -207,6 +211,10 @@ class DBTable {
                 }
                 $condition_expr_array[] = substr($condition_expr, $expr_cur_pos, strlen($placeholder_name));
                 $expr_cur_pos += strlen($placeholder_name);
+            }
+
+            if ($expr_cur_pos < strlen($condition_expr)) {
+                $condition_expr_array[] = substr($condition_expr, $expr_cur_pos);
             }
 
             for ($i = 0; $i < sizeof($condition_expr_array); $i++) {
