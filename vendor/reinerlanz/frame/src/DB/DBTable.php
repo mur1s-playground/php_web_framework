@@ -239,9 +239,10 @@ class DBTable {
             $query = "SELECT ";
             $used_fields = $fields->getFields();
             $field_selector = array();
-
-            for ($j = 0; $j < sizeof($this->joins); $j++) {
-                $field_local_set_joins[$j] = array();
+            if (!is_null($this->joins)) {
+                for ($j = 0; $j < sizeof($this->joins); $j++) {
+                    $field_local_set_joins[$j] = array();
+                }
             }
             foreach ($used_fields as $field_desc) {
                 $field_class = $field_desc[0];
@@ -269,7 +270,7 @@ class DBTable {
                     }
                 }
             }
-
+            $query .= implode(',', $field_selector);
             $query .= " FROM `{$this->table_name}` AS `frame_maintable`";
         }
 
@@ -681,9 +682,9 @@ class DBTable {
                 $expr_array[$expr_ct][] = substr($expression, $expr_cur_pos);
             }
 
-            for ($i = 0; $i < sizeof($expr_array); $i++) {
-                if (array_key_exists($expr_array[$i], $value_array)) {
-                    $replacement = $value_array[$expr_array[$i]];
+            for ($i = 0; $i < sizeof($expr_array[$expr_ct]); $i++) {
+                if (array_key_exists($expr_array[$expr_ct][$i], $value_array)) {
+                    $replacement = $value_array[$expr_array[$expr_ct][$i]];
 
                     if ($replacement[0] == get_class($this)) {
                         $field = $this->fields()[$replacement[1]];
@@ -716,7 +717,7 @@ class DBTable {
         }
         $result = '';
         $function_class_full_name = "\Frame\Function{$function_name}";
-        require_once "Functions/Function{$function_name}.php";
+        require_once dirname(__FILE__) . "/Functions/Function{$function_name}.php";
         $function_class = new $function_class_full_name();
         $function_skeleton = $function_class->getSkeleton();
         foreach ($function_skeleton as $fs_key => $fs_value) {

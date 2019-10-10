@@ -5,7 +5,7 @@ namespace Frame;
 
 
 class DBFunction {
-    const FUNCTION_COUNT    = "COUNT";
-    const FUNCTION_MAX      = "MAX";
-    const FUNCTION_MIN      = "MIN";
+    const FUNCTION_COUNT    = "Count";
+    const FUNCTION_MAX      = "Max";
+    const FUNCTION_MIN      = "Min";
 }
