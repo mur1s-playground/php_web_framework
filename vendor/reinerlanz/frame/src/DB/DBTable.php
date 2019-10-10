@@ -97,6 +97,14 @@ class DBTable {
     public function find($condition = null, $joins = null, $orders = null, $limit = null, $fields = null) {
         $error = array();
 
+        if (!is_null($joins)) {
+            if (!is_array($joins)) {
+                $joins = [$joins];
+            }
+
+            $this->joins = $joins;
+        }
+
         $this->fieldSet = $fields;
 
         if (!is_null($fields)) {
@@ -133,12 +141,6 @@ class DBTable {
 
         $query_join = "";
         if (!is_null($joins)) {
-            if (!is_array($joins)) {
-                $joins = [$joins];
-            }
-
-            $this->joins = $joins;
-
             $join_table_counter = 0;
             foreach ($this->joins as $join) {
                 $query_join .= " {$join->getJoinType()} `{$join->getModel()->table_name}` AS `frame_join_{$join_table_counter}` ON ";
@@ -603,6 +605,10 @@ class DBTable {
         $this->fieldLocalSet = $fieldLocalSet;
     }
 
+    public function fieldLocalSetGet() {
+        return $this->fieldLocalSet;
+    }
+
     public function joinedModelByClass($class) {
         foreach ($this->joins as $join) {
             if ($class == get_class($join->getModel())) {
@@ -619,24 +625,34 @@ class DBTable {
     public function toArray($deep = false) {
         $arr = array();
         if ($deep) {
-            $arr[get_class($this)] = array();
             foreach ($this->fields as $field_name_camel => $field) {
                 $child_getter_function = "get{$field_name_camel}";
-                $arr[get_class($this)][$field_name_camel] = $this->$child_getter_function();
+                if (is_null($this->fieldLocalSet) || in_array($field_name_camel, $this->fieldLocalSet)) {
+                    if (!array_key_exists(get_class($this), $arr)) $arr[get_class($this)] = array();
+                    $arr[get_class($this)][$field_name_camel] = $this->$child_getter_function();
+                }
             }
             if (!is_null($this->joins)) {
-                $arr['joins'] = array();
                 foreach ($this->joins as $join_offset => $join) {
                     $model = $this->joinedModelById($join_offset);
-                    if (!array_key_exists(get_class($model), $arr['joins'])) {
-                        $arr['joins'][get_class($model)] = $model->toArray();
+                    $arr_idx = $join_offset;
+                    if (!array_key_exists('Frame\Join', $arr) || !array_key_exists(get_class($model), $arr['Frame\Join'])) {
+                        $arr_idx = get_class($model);
+                    }
+                    if (is_null($this->fieldLocalSet) && is_null($model->fieldLocalSetGet())) {
+                        if (!array_key_exists('Frame\Join', $arr)) $arr['Frame\Join'] = array();
+                        $arr['Frame\Join'][$arr_idx] = $model->toArray();
                     } else {
-                        $arr['joins'][$join_offset] = $model->toArray();
+                        foreach ($model->fieldLocalSetGet() as $field_name_camel) {
+                            if (!array_key_exists('Frame\Join', $arr)) $arr['Frame\Join'] = array();
+                            $child_getter_function = "get{$field_name_camel}";
+                            $arr['Frame\Join'][$arr_idx][$field_name_camel] = $model->$child_getter_function();
+                        }
                     }
                 }
             }
             if (!is_null($this->function_fields) && sizeof($this->function_fields) > 0) {
-                $arr['functionValues'] = $this->function_result_row;
+                $arr['Frame\DBFunction'] = $this->function_result_row;
             }
         } else {
             foreach ($this->fields as $field_name_camel => $field) {
@@ -647,7 +663,7 @@ class DBTable {
         return $arr;
     }
 
-    public function functionValue($custom_name) {
+    public function DBFunctionResult($custom_name) {
         return $this->function_result_row[$custom_name];
     }
 
@@ -716,8 +732,8 @@ class DBTable {
             }
         }
         $result = '';
-        $function_class_full_name = "\Frame\Function{$function_name}";
-        require_once dirname(__FILE__) . "/Functions/Function{$function_name}.php";
+        $function_class_full_name = "\Frame\DBFunction{$function_name}";
+        require_once dirname(__FILE__) . "/DBFunctions/DBFunction{$function_name}.php";
         $function_class = new $function_class_full_name();
         $function_skeleton = $function_class->getSkeleton();
         foreach ($function_skeleton as $fs_key => $fs_value) {

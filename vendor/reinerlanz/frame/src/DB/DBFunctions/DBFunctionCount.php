@@ -4,7 +4,7 @@
 namespace Frame;
 
 
-class FunctionCount {
+class DBFunctionCount {
     protected $args_expr = null;
     protected $argc = 1;
 

@@ -4,13 +4,13 @@
 namespace Frame;
 
 
-class FunctionMax {
+class DBFunctionMin {
     protected $args_expr = null;
     protected $argc = 1;
 
     public function getDescription() {
         return array(
-            "Field"     => "MAX",
+            "Field"     => "MIN",
             "Type"      => "int(11)",
             "Null"      => "NO",
             "Key"       => "",
@@ -21,7 +21,7 @@ class FunctionMax {
 
     public function getSkeleton() {
         return array(
-            "pre"       => "MAX(",
+            "pre"       => "MIN(",
             "arg"       => 0,
             "post"      => ")"
         );
