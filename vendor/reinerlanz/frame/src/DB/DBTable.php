@@ -10,9 +10,14 @@ class DBTable {
 
     protected $table_name = null;
     protected $fields = null;
+    protected $function_fields = null;
     protected $joins = null;
 
+    protected $fieldSet = null;
+    protected $fieldLocalSet = null;
+
     protected $resultSet = null;
+    protected $function_result_row = null;
 
     public function __construct($table_name, $fields, $values = null) {
         $this->DBO = $GLOBALS['Boot']->getDBO();
@@ -89,10 +94,42 @@ class DBTable {
         }
     }
 
-    public function find($condition = null, $joins = null, $orders = null, $limit = null) {
+    public function find($condition = null, $joins = null, $orders = null, $limit = null, $fields = null) {
         $error = array();
 
-        $query = "SELECT * FROM `{$this->table_name}` AS `frame_maintable`";
+        $this->fieldSet = $fields;
+
+        if (!is_null($fields)) {
+            $used_fields = $fields->getFields();
+            $field_local_set = array();
+            $field_local_set_joins = array();
+            $function_fields = array();
+            foreach ($used_fields as $field_desc) {
+                $field_class = $field_desc[0];
+                $field_name_camel = $field_desc[1];
+                if ($field_class == get_class($this)) {
+                    $field_local_set[] = $field_name_camel;
+                } else if ($field_class == DBFunction::class) {
+                    $function_fields[] = $field_name_camel;
+                } else {
+                    $j = 0;
+                    if (sizeof($field_desc) == 3) {
+                        $j = $field_desc[2];
+                    }
+                    for (; $j < sizeof($this->joins); $j++) {
+                        if ($field_class == get_class($this->joins[$j]->getModel())) {
+                            $field_local_set_joins[$j][] = $field_name_camel;
+                            break;
+                        }
+                    }
+                }
+            }
+            $this->fieldLocalSet = $field_local_set;
+            $this->function_fields = $function_fields;
+            foreach ($field_local_set_joins as $j => $field_local_set_join) {
+                $this->joins[$j]->getModel()->fieldLocalSet($field_local_set_join);
+            }
+        }
 
         $query_join = "";
         if (!is_null($joins)) {
@@ -141,6 +178,10 @@ class DBTable {
                             } else {
                                 $join_expr_array[$i] = "'" . $this->DBO->real_escape_string($replacement[0][1]) . "'";
                             }
+                        } else if ($replacement[0][0] == DBFunction::class) {
+                            //currently only joining on selected function fields
+                            //TODO: sanitise custom field name
+                            $join_expr_array[$i] = "`{$replacement[0][1]}`";
                         } else {
                             $j = 0;
                             if (sizeof($replacement[0]) == 3) {
@@ -153,7 +194,6 @@ class DBTable {
                                     break;
                                 }
                             }
-
                         }
 
                         $join_expr_array[$i] .= " {$replacement[1]} ";
@@ -167,6 +207,10 @@ class DBTable {
                             } else {
                                 $join_expr_array[$i] .= "'" . $this->DBO->real_escape_string($replacement[2][1]) . "'";
                             }
+                        } else if ($replacement[2][0] == DBFunction::class) {
+                            //currently only joining on selected function fields
+                            //TODO: sanitise custom field name
+                            $join_expr_array[$i] = "`{$replacement[2][1]}`";
                         } else {
                             $j = 0;
                             if (sizeof($replacement[2]) == 3) {
@@ -187,6 +231,46 @@ class DBTable {
 
                 $join_table_counter++;
             }
+        }
+
+        if (is_null($fields)) {
+            $query = "SELECT * FROM `{$this->table_name}` AS `frame_maintable`";
+        } else {
+            $query = "SELECT ";
+            $used_fields = $fields->getFields();
+            $field_selector = array();
+
+            for ($j = 0; $j < sizeof($this->joins); $j++) {
+                $field_local_set_joins[$j] = array();
+            }
+            foreach ($used_fields as $field_desc) {
+                $field_class = $field_desc[0];
+                $field_name_camel = $field_desc[1];
+                if ($field_class == get_class($this)) {
+                    $field = $this->fields()[$field_name_camel];
+                    $field_selector[] = "`frame_maintable`.{$field['Field']}";
+                } else if ($field_class == DBFunction::class) {
+                    $function_name = $field_desc[2];
+                    $function_expr = null;
+                    if (sizeof($field_desc) == 4) $function_expr = $field_desc[3];
+                    //TODO: sanitise $field_name_camel = custom field name
+                    $field_selector[] = "{$this->parseFunctionExpression($function_name, $function_expr)} AS `{$field_name_camel}`";
+                } else {
+                    $j = 0;
+                    if (sizeof($field_desc) == 3) {
+                        $j = $field_desc[2];
+                    }
+                    for (; $j < sizeof($this->joins); $j++) {
+                        if ($field_class == get_class($this->joins[$j]->getModel())) {
+                            $field = $this->joins[$j]->getModel()->fields()[$field_name_camel];
+                            $field_selector[] = "`frame_join_{$j}`.`{$field['Field']}`";
+                            break;
+                        }
+                    }
+                }
+            }
+
+            $query .= " FROM `{$this->table_name}` AS `frame_maintable`";
         }
 
         $query .= "{$query_join}";
@@ -230,12 +314,18 @@ class DBTable {
                         } else {
                             $condition_expr_array[$i] = "'" . $this->DBO->real_escape_string($replacement[0][1]) . "'";
                         }
+                    } else if ($replacement[0][0] == DBFunction::class) {
+                        //currently only cond on selected function fields
+                        //TODO: sanitise custom field name
+                        $condition_expr_array[$i] = "`{$replacement[0][1]}`";
                     } else {
                         $j = 0;
                         if (sizeof($replacement[0]) == 3) {
                             $j = $replacement[0][2];
                         }
+
                         for (; $j < sizeof($this->joins); $j++) {
+
                             if ($replacement[0][0] == get_class($this->joins[$j]->getModel())) {
                                 $field = $this->joins[$j]->getModel()->fields()[$replacement[0][1]];
                                 $condition_expr_array[$i] = "`frame_join_{$j}`.`{$field['Field']}`";
@@ -255,11 +345,16 @@ class DBTable {
                         } else {
                             $condition_expr_array[$i] .= "'" . $this->DBO->real_escape_string($replacement[2][1]) . "'";
                         }
+                    } else if ($replacement[2][0] == DBFunction::class) {
+                        //currently only cond on selected function fields
+                        //TODO: sanitise custom field name
+                        $condition_expr_array[$i] = "`{$replacement[2][1]}`";
                     } else {
                         $j = 0;
                         if (sizeof($replacement[2]) == 3) {
                             $j = $replacement[2][2];
                         }
+
                         for (; $j < sizeof($this->joins); $j++) {
                             if ($replacement[2][0] == get_class($this->joins[$j]->getModel())) {
                                 $field = $this->joins[$j]->getModel()->fields()[$replacement[2][1]];
@@ -288,6 +383,10 @@ class DBTable {
                 if ($table == get_class($this)) {
                     $table_field = $this->fields[$field_name_camel];
                     $order_arr[] = "`frame_maintable`.`{$table_field['Field']}` {$sorting}";
+                } else if ($table == DBFunction::class) {
+                    //currently only ordering by selected function fields
+                    //TODO: sanitise custom field name
+                    $order_arr[] = "`{$field_name_camel}`";
                 } else {
                     $j = 0;
                     if ($order->getJoinOffset() > 0) {
@@ -306,12 +405,12 @@ class DBTable {
         }
 
         if (!is_null($limit)) {
-            if (!is_int($limit->getLimit())) {
+            if (!is_numeric($limit->getLimit())) {
                 $error[] = "non int limit";
             }
             $query .= " LIMIT {$limit->getLimit()}";
             if (!is_null($limit->getOffset())) {
-                if (!is_int($limit->getOffset())) {
+                if (!is_numeric($limit->getOffset())) {
                     $error[] = "non int offset";
                 }
                 $query .= ", {$limit->getOffset()}";
@@ -337,17 +436,47 @@ class DBTable {
     public function next() {
         if (!is_null($this->resultSet) && $this->resultSet && ($row = mysqli_fetch_row($this->resultSet)) != null) {
             $field_counter = 0;
-            foreach ($this->fields as $field_name_camel => $field) {
-                $child_setter_function = "set{$field_name_camel}";
-                $this->$child_setter_function($row[$field_counter]);
-                $field_counter++;
-            }
-            if (!is_null($this->joins)) {
-                foreach ($this->joins as $join) {
-                    foreach ($join->getModel()->fields() as $field_name_camel => $field) {
+            if (is_null($this->fieldSet)) {
+                foreach ($this->fields as $field_name_camel => $field) {
+                    $child_setter_function = "set{$field_name_camel}";
+                    $this->$child_setter_function($row[$field_counter]);
+                    $field_counter++;
+                }
+                if (!is_null($this->joins)) {
+                    foreach ($this->joins as $join) {
+                        foreach ($join->getModel()->fields() as $field_name_camel => $field) {
+                            $child_setter_function = "set{$field_name_camel}";
+                            $join->getModel()->$child_setter_function($row[$field_counter]);
+                            $field_counter++;
+                        }
+                    }
+                }
+            } else {
+                $used_fields = $this->fieldSet->getFields();
+                foreach ($used_fields as $field_desc) {
+                    $field_class = $field_desc[0];
+                    $field_name_camel = $field_desc[1];
+                    if ($field_class == get_class($this)) {
                         $child_setter_function = "set{$field_name_camel}";
-                        $join->getModel()->$child_setter_function($row[$field_counter]);
+                        $this->$child_setter_function($row[$field_counter]);
                         $field_counter++;
+                    } else if ($field_class == DBFunction::class) {
+                        $custom_name = $field_name_camel;
+                        $this->function_result_row[$custom_name] = $row[$field_counter];
+                        $field_counter++;
+                    } else {
+                        $j = 0;
+                        if (sizeof($field_desc) == 3) {
+                            $j = $field_desc[2];
+                        }
+                        for (; $j < sizeof($this->joins); $j++) {
+                            if ($field_class == get_class($this->joins[$j]->getModel())) {
+                                $child_setter_function = "set{$field_name_camel}";
+                                $this->joins[$j]->getModel()->$child_setter_function($row[$field_counter]);
+                                $field_counter++;
+                                break;
+                            }
+                        }
                     }
                 }
             }
@@ -361,6 +490,11 @@ class DBTable {
         $where = "";
         $error = array();
         foreach ($this->fields as $field_name_camel => $field) {
+            if (!is_null($this->fieldLocalSet)) {
+                if (!in_array($field_name_camel, $this->fieldLocalSet)) {
+                    continue;
+                }
+            }
             $child_getter_function = "get{$field_name_camel}";
             $value = $this->$child_getter_function();
 
@@ -413,6 +547,11 @@ class DBTable {
         $where = "";
         foreach ($this->fields as $field_name_camel => $field) {
             if ($field['Key'] == 'PRI') {
+                if (!is_null($this->fieldLocalSet)) {
+                    if (!in_array($field_name_camel, $this->fieldLocalSet)) {
+                        continue;
+                    }
+                }
                 $child_getter_function = "get{$field_name_camel}";
                 $value = $this->$child_getter_function();
 
@@ -459,6 +598,10 @@ class DBTable {
         return $this->fields;
     }
 
+    public function fieldLocalSet($fieldLocalSet) {
+        $this->fieldLocalSet = $fieldLocalSet;
+    }
+
     public function joinedModelByClass($class) {
         foreach ($this->joins as $join) {
             if ($class == get_class($join->getModel())) {
@@ -472,12 +615,119 @@ class DBTable {
         return $this->joins[$id]->getModel();
     }
 
-    public function toArray() {
+    public function toArray($deep = false) {
         $arr = array();
-        foreach ($this->fields as $field_name_camel => $field) {
-            $child_getter_function = "get{$field_name_camel}";
-            $arr[$field_name_camel] = $this->$child_getter_function();
+        if ($deep) {
+            $arr[get_class($this)] = array();
+            foreach ($this->fields as $field_name_camel => $field) {
+                $child_getter_function = "get{$field_name_camel}";
+                $arr[get_class($this)][$field_name_camel] = $this->$child_getter_function();
+            }
+            if (!is_null($this->joins)) {
+                $arr['joins'] = array();
+                foreach ($this->joins as $join_offset => $join) {
+                    $model = $this->joinedModelById($join_offset);
+                    if (!array_key_exists(get_class($model), $arr['joins'])) {
+                        $arr['joins'][get_class($model)] = $model->toArray();
+                    } else {
+                        $arr['joins'][$join_offset] = $model->toArray();
+                    }
+                }
+            }
+            if (!is_null($this->function_fields) && sizeof($this->function_fields) > 0) {
+                $arr['functionValues'] = $this->function_result_row;
+            }
+        } else {
+            foreach ($this->fields as $field_name_camel => $field) {
+                $child_getter_function = "get{$field_name_camel}";
+                $arr[$field_name_camel] = $this->$child_getter_function();
+            }
         }
         return $arr;
+    }
+
+    public function functionValue($custom_name) {
+        return $this->function_result_row[$custom_name];
+    }
+
+    private function parseFunctionExpression($function_name, $expr) {
+        if (!is_array($expr)) {
+            $expr = array($expr);
+        }
+
+        $expr_array = array();
+        foreach ($expr as $expr_ct => $expr_obj) {
+            $expression = $expr_obj->getExpr();
+            $value_array = $expr_obj->getValueArray();
+
+            $expr_array[$expr_ct] = array();
+
+            $placeholders = array();
+            preg_match_all("/\[[A-Za-z0-9_]+\]/", $expression, $placeholders, PREG_OFFSET_CAPTURE);
+
+            $expr_cur_pos = 0;
+            foreach ($placeholders[0] as $placeholder_arr) {
+                $placeholder_name = $placeholder_arr[0];
+                $placeholder_pos = $placeholder_arr[1];
+                if ($expr_cur_pos < $placeholder_pos) {
+                    $expr_array[$expr_ct][] = substr($expression, $expr_cur_pos, $placeholder_pos - $expr_cur_pos);
+                    $expr_cur_pos = $placeholder_pos;
+                }
+                $expr_array[$expr_ct][] = substr($expression, $expr_cur_pos, strlen($placeholder_name));
+                $expr_cur_pos += strlen($placeholder_name);
+            }
+
+            if ($expr_cur_pos < strlen($expression)) {
+                $expr_array[$expr_ct][] = substr($expression, $expr_cur_pos);
+            }
+
+            for ($i = 0; $i < sizeof($expr_array); $i++) {
+                if (array_key_exists($expr_array[$i], $value_array)) {
+                    $replacement = $value_array[$expr_array[$i]];
+
+                    if ($replacement[0] == get_class($this)) {
+                        $field = $this->fields()[$replacement[1]];
+                        $expr_array[$expr_ct][$i] = "`frame_maintable`.`{$field['Field']}`";
+                    } else if ($replacement[0] == Condition::CONDITION_CONST) {
+                        if (is_numeric($replacement[1])) {
+                            $expr_array[$expr_ct][$i] = $replacement[1];
+                        } else {
+                            $expr_array[$expr_ct][$i] = $this->DBO->real_escape_string($replacement[1]);
+                        }
+                    } else if ($replacement[0] == DBFunction::class) {
+                        $sub_expr = null;
+                        if (sizeof($replacement) == 3) $sub_expr = $replacement[2];
+                        $expr_array[$expr_ct][$i] = $this->parseFunctionExpression($replacement[1], $sub_expr);
+                    } else {
+                        $j = 0;
+                        if (sizeof($replacement[0]) == 3) {
+                            $j = $replacement[2];
+                        }
+                        for (; $j < sizeof($this->joins); $j++) {
+                            if ($replacement[0] == get_class($this->joins[$j]->getModel())) {
+                                $field = $this->joins[$j]->getModel()->fields()[$replacement[1]];
+                                $expr_array[$expr_ct][$i] = "`frame_join_{$j}`.`{$field['Field']}`";
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        $result = '';
+        $function_class_full_name = "\Frame\Function{$function_name}";
+        require_once "Functions/Function{$function_name}.php";
+        $function_class = new $function_class_full_name();
+        $function_skeleton = $function_class->getSkeleton();
+        foreach ($function_skeleton as $fs_key => $fs_value) {
+            if ($fs_key == 'pre') {
+                $result .= $fs_value;
+            } else if ($fs_key == 'arg') {
+                $result .= implode('', $expr_array[$fs_value]);
+            } else if ($fs_key == 'post') {
+                $result .= $fs_value;
+            }
+        }
+        return $result;
     }
 }

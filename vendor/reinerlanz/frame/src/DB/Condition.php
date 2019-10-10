@@ -11,6 +11,7 @@ class Condition {
     const COMPARISON_GREATER_EQUALS = '>=';
     const COMPARISON_LESS = '<';
     const COMPARISON_LESS_EQUALS = '<=';
+    const COMPARISON_LIKE = 'LIKE';
 
     private $expr = "";
     private $value_array = "";
