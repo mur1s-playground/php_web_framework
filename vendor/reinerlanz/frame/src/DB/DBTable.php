@@ -94,7 +94,7 @@ class DBTable {
         }
     }
 
-    public function find($condition = null, $joins = null, $orders = null, $limit = null, $fields = null) {
+    public function find($condition = null, $joins = null, $orders = null, $limit = null, $fields = null, $group_by = null) {
         $error = array();
 
         if (!is_null($joins)) {
@@ -369,6 +369,41 @@ class DBTable {
                 }
             }
             $query .= $where . implode('', $condition_expr_array);
+        }
+
+        if (!is_null($group_by)) {
+            if (!is_array($group_by)) {
+                $group_by = [$group_by];
+            }
+
+            $group_by_query = " GROUP BY ";
+            $group_by_arr = array();
+            foreach ($group_by as $group_by_col) {
+                $table = $group_by_col->getClass();
+                $field_name_camel = $group_by_col->getField();
+
+                if ($table == get_class($this)) {
+                    $table_field = $this->fields[$field_name_camel];
+                    $group_by_arr[] = "`frame_maintable`.`{$table_field['Field']}`";
+                } else if ($table == DBFunction::class) {
+                    //currently only ordering by selected function fields
+                    //TODO: sanitise custom field name
+                    $group_by_arr[] = "`{$field_name_camel}`";
+                } else {
+                    $j = 0;
+                    if ($group_by_col->getJoinOffset() > 0) {
+                        $j = $group_by_col->getJoinOffset();
+                    }
+                    for (; $j < sizeof($this->joins); $j++) {
+                        if ($table == get_class($this->joins[$j]->getModel())) {
+                            $table_field = $this->joins[$j]->getModel()->fields()[$field_name_camel];
+                            $group_by_arr[] = "`frame_join_{$j}`.`{$table_field['Field']}`";
+                            break;
+                        }
+                    }
+                }
+            }
+            $query .= $group_by_query . implode(',', $group_by_arr);
         }
 
         if (!is_null($orders)) {
