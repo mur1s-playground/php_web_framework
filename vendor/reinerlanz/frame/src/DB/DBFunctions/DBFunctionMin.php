@@ -21,9 +21,9 @@ class DBFunctionMin {
 
     public function getSkeleton() {
         return array(
-            "pre"       => "MIN(",
-            "arg"       => 0,
-            "post"      => ")"
+            ['str',     "MIN("  ],
+            ['arg',     0       ],
+            ['str',     ")"     ]
         );
     }
 }

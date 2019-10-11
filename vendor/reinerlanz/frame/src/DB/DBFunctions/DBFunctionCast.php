@@ -4,14 +4,14 @@
 namespace Frame;
 
 
-class DBFunctionMax {
+class DBFunctionCast {
     protected $args_expr = null;
-    protected $argc = 1;
+    protected $argc = 2;
 
     public function getDescription() {
         return array(
-            "Field"     => "MAX",
-            "Type"      => "int(11)",
+            "Field"     => "CAST",
+            "Type"      => "",
             "Null"      => "NO",
             "Key"       => "",
             "Default"   => null,
@@ -21,8 +21,10 @@ class DBFunctionMax {
 
     public function getSkeleton() {
         return array(
-            ['str',     "MAX("  ],
+            ['str',     "CAST(" ],
             ['arg',     0       ],
+            ['str',     " AS "  ],
+            ['arg',     1       ],
             ['str',     ")"     ]
         );
     }

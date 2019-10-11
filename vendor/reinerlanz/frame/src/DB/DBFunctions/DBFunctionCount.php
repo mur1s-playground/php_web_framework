@@ -21,9 +21,9 @@ class DBFunctionCount {
 
     public function getSkeleton() {
         return array(
-            "pre"       => "COUNT(",
-            "arg"       => 0,
-            "post"      => ")"
+            ['str',     "COUNT("],
+            ['arg',     0       ],
+            ['str',     ")"     ]
         );
     }
 }

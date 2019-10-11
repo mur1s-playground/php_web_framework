@@ -4,14 +4,14 @@
 namespace Frame;
 
 
-class DBFunctionMax {
+class DBFunctionConcat {
     protected $args_expr = null;
-    protected $argc = 1;
+    protected $argc = "inf";
 
     public function getDescription() {
         return array(
-            "Field"     => "MAX",
-            "Type"      => "int(11)",
+            "Field"     => "CONCAT",
+            "Type"      => "",
             "Null"      => "NO",
             "Key"       => "",
             "Default"   => null,
@@ -21,9 +21,9 @@ class DBFunctionMax {
 
     public function getSkeleton() {
         return array(
-            ['str',     "MAX("  ],
-            ['arg',     0       ],
-            ['str',     ")"     ]
+            ['str'      , "CONCAT(" ],
+            ['arglist'  , 0         , "inf"],
+            ['str'      , ")"       ]
         );
     }
 }

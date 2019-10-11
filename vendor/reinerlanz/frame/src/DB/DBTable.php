@@ -736,13 +736,23 @@ class DBTable {
         require_once dirname(__FILE__) . "/DBFunctions/DBFunction{$function_name}.php";
         $function_class = new $function_class_full_name();
         $function_skeleton = $function_class->getSkeleton();
-        foreach ($function_skeleton as $fs_key => $fs_value) {
-            if ($fs_key == 'pre') {
-                $result .= $fs_value;
-            } else if ($fs_key == 'arg') {
-                $result .= implode('', $expr_array[$fs_value]);
-            } else if ($fs_key == 'post') {
-                $result .= $fs_value;
+        foreach ($function_skeleton as $fs_value) {
+            $fs_type = $fs_value[0];
+            $fs_val = $fs_value[1];
+            if ($fs_type == 'str') {
+                $result .= $fs_val;
+            } else if ($fs_type == 'arg') {
+                $result .= implode('', $expr_array[$fs_val]);
+            } else if ($fs_type == "arglist") {
+                $fs_val_2 = $fs_value[2];
+                if ($fs_val_2 == "inf") {
+                    $fs_val_2 = sizeof($expr_array);
+                }
+                $expr_r = array();
+                for ($i = $fs_val; $i < $fs_val_2; $i++) {
+                    $expr_r[] = implode('', $expr_array[$i]);
+                }
+                $result .= implode(',', $expr_r);
             }
         }
         return $result;
