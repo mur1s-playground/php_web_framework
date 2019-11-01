@@ -348,6 +348,18 @@ class DBTable {
                         } else {
                             $condition_expr_array[$i] .= "'" . $this->DBO->real_escape_string($replacement[2][1]) . "'";
                         }
+                    } else if ($replacement[2][0] == Condition::CONDITION_CONST_ARRAY) {
+                        $condition_expr_array[$i] .= '(';
+                        $tmp_cond_array = array();
+                        foreach ($replacement[2][1] as $repl) {
+                            if (is_numeric($repl)) {
+                                $tmp_cond_array[] = $repl;
+                            } else {
+                                $tmp_cond_array[] = "'" . $this->DBO->real_escape_string($repl) . "'";
+                            }
+                        }
+                        $condition_expr_array[$i] .= implode(',', $tmp_cond_array);
+                        $condition_expr_array[$i] .= ')';
                     } else if ($replacement[2][0] == DBFunction::class) {
                         //currently only cond on selected function fields
                         //TODO: sanitise custom field name
@@ -581,6 +593,7 @@ class DBTable {
     }
 
     public function delete($deep = false) {
+        $error = array();
         $query = "DELETE FROM `{$this->table_name}`";
         $where = "";
         foreach ($this->fields as $field_name_camel => $field) {
